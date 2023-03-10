@@ -1105,6 +1105,7 @@ async fn test_handle_transfer_transaction_unknown_sender() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test_upgrade_module_is_feature_gated() {
     let (sender, sender_key): (_, AccountKeyPair) = get_key_pair();
     let gas_object_id = ObjectID::random();

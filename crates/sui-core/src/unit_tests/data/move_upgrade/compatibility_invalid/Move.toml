@@ -1,0 +1,6 @@
+[package]
+name = "complex_compatibility_valid"
+version = "0.0.3"
+
+[addresses]
+base_addr = "0x0"
