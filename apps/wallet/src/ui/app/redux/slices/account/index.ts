@@ -86,14 +86,14 @@ const accountsAdapter = createEntityAdapter<SerializedAccount>({
 
 type AccountState = {
     creating: boolean;
-    address: SuiAddress | null;
+    serializedInfo: SerializedAccount | null;
     isLocked: boolean | null;
     isInitialized: boolean | null;
 };
 
 const initialState = accountsAdapter.getInitialState<AccountState>({
     creating: false,
-    address: null,
+    serializedInfo: null,
     isLocked: null,
     isInitialized: null,
 });
