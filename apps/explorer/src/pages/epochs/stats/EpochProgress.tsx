@@ -13,17 +13,17 @@ import { Text } from '~/ui/Text';
 export interface EpochProgressProps {
     epoch?: number;
     start: number;
-    end: number;
+    duration: number;
     inProgress?: boolean;
 }
 
 export function EpochProgress({
     epoch,
     start,
-    end,
+    duration,
     inProgress = true,
 }: EpochProgressProps) {
-    const { progress, label } = useEpochProgress(start, end);
+    const { progress, label } = useEpochProgress(start, duration);
 
     return (
         <Card bg={inProgress ? 'highlight' : 'default'} spacing="lg">
