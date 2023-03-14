@@ -45,10 +45,4 @@ export class SentryRpcClient extends JsonRpcClient {
             super.request(method, args)
         );
     }
-
-    async batchRequest(requests: RpcParams[]) {
-        return this.#withRequest('batch', { requests }, () =>
-            super.batchRequest(requests)
-        );
-    }
 }
