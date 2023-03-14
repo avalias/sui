@@ -107,7 +107,11 @@ export function ModuleFunction({
         isValidating || !isValid || isSubmitting || !isConnected;
 
     return (
-        <DisclosureBox defaultOpen={defaultOpen} title={functionName}>
+        <DisclosureBox
+            variant="accordion"
+            defaultOpen={defaultOpen}
+            title={functionName}
+        >
             <form
                 onSubmit={handleSubmit((formData) =>
                     execute.mutateAsync(formData).catch(() => {
