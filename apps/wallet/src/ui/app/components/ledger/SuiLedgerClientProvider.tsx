@@ -14,7 +14,6 @@ import {
 } from 'react';
 
 import { LedgerSigner } from '../../LedgerSigner';
-import { useAppSelector } from '../../hooks';
 import { api } from '../../redux/store/thunk-extras';
 import {
     LedgerConnectionFailedError,
@@ -39,22 +38,14 @@ const SuiLedgerClientContext = createContext<
     SuiLedgerClientContextValue | undefined
 >(undefined);
 
-type LedgerSignerByDerivationPath = Map<string, LedgerSigner>;
-
 export function SuiLedgerClientProvider({
     children,
 }: SuiLedgerClientProviderProps) {
     const [suiLedgerClient, setSuiLedgerClient] = useState<SuiLedgerClient>();
-    const network = useAppSelector(
-        ({ app: { apiEnv, customRPC } }) => `${apiEnv}_${customRPC}`
-    );
-    const [ledgerSignerMap, setLedgerSignerMap] =
-        useState<LedgerSignerByDerivationPath>(new Map());
 
     useEffect(() => {
         const onDisconnect = () => {
             setSuiLedgerClient(undefined);
-            setLedgerSignerMap(new Map());
         };
 
         suiLedgerClient?.transport.on('disconnect', onDisconnect);
@@ -63,20 +54,13 @@ export function SuiLedgerClientProvider({
 
     const initializeLedgerSignerInstance = useCallback(
         async (derivationPath: string) => {
-            const existingLedgerSigner = ledgerSignerMap.get(derivationPath);
-            if (existingLedgerSigner) {
-                return existingLedgerSigner;
-            }
-
-            let ledgerSigner: LedgerSigner;
-
             if (!suiLedgerClient) {
                 try {
-                    const transport = await getLedgerTransport(false);
+                    const transport = await getLedgerTransport();
                     const newClient = new SuiLedgerClient(transport);
                     setSuiLedgerClient(newClient);
 
-                    ledgerSigner = new LedgerSigner(
+                    return new LedgerSigner(
                         newClient,
                         derivationPath,
                         api.instance.fullNode
@@ -84,23 +68,15 @@ export function SuiLedgerClientProvider({
                 } catch (error) {
                     throw new Error('F');
                 }
-            } else {
-                ledgerSigner = new LedgerSigner(
-                    suiLedgerClient,
-                    derivationPath,
-                    api.instance.fullNode
-                );
             }
 
-            setLedgerSignerMap((prevState) => {
-                const updatedMap = new Map(prevState);
-                updatedMap.set(derivationPath, ledgerSigner!);
-                return updatedMap;
-            });
-
-            return ledgerSigner;
+            return new LedgerSigner(
+                suiLedgerClient,
+                derivationPath,
+                api.instance.fullNode
+            );
         },
-        [ledgerSignerMap, suiLedgerClient]
+        [suiLedgerClient]
     );
 
     const connectToLedger = useCallback(async () => {
@@ -141,7 +117,7 @@ export function useSuiLedgerClient() {
     return suiLedgerClientContext;
 }
 
-async function getLedgerTransport(requestPermissionsFirst: boolean) {
+async function getLedgerTransport(requestPermissionsFirst = false) {
     let ledgerTransport: Transport | null | undefined;
 
     try {

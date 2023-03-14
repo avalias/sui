@@ -3,6 +3,7 @@
 
 import { fromB64 } from '@mysten/sui.js';
 import { useMemo } from 'react';
+import toast from 'react-hot-toast';
 
 import { useSuiLedgerClient } from '../../components/ledger/SuiLedgerClientProvider';
 import { UserApproveContainer } from '../../components/user-approve-container';
@@ -13,7 +14,6 @@ import { Heading } from '../../shared/heading';
 import { PageMainLayoutTitle } from '../../shared/page-main-layout/PageMainLayoutTitle';
 import { Text } from '../../shared/text';
 import { type SignMessageApprovalRequest } from '_payloads/transactions/ApprovalRequest';
-import toast from 'react-hot-toast';
 
 export type SignMessageRequestProps = {
     request: SignMessageApprovalRequest;

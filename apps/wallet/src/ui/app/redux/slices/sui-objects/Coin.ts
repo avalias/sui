@@ -15,6 +15,7 @@ import {
     type CoinStruct,
 } from '@mysten/sui.js';
 import * as Sentry from '@sentry/react';
+
 import { type LedgerSigner } from '_src/ui/app/LedgerSigner';
 
 const COIN_TYPE = '0x2::coin::Coin';
