@@ -13,15 +13,15 @@ import {
     useState,
 } from 'react';
 
+import { LedgerSigner } from '../../LedgerSigner';
+import { useAppSelector } from '../../hooks';
+import { api } from '../../redux/store/thunk-extras';
 import {
     LedgerConnectionFailedError,
     LedgerNoTransportMechanismError,
 } from './LedgerExceptions';
 
 import type Transport from '@ledgerhq/hw-transport';
-import { LedgerSigner } from '../../LedgerSigner';
-import { api } from '../../redux/store/thunk-extras';
-import { useAppSelector } from '../../hooks';
 
 type SuiLedgerClientProviderProps = {
     children: React.ReactNode;
@@ -153,7 +153,7 @@ async function getLedgerTransport(requestPermissionsFirst: boolean) {
         if (requestPermissionsFirst) {
             ledgerTransport = await requestConnectToLedger();
         } else {
-            ledgerTransport = await connectToLedger();
+            ledgerTransport = await forceConnectToLedger();
         }
     } catch (error) {
         console.log('ERROR', error);
@@ -180,7 +180,7 @@ async function requestConnectToLedger(): Promise<Transport | null> {
     return null;
 }
 
-async function connectToLedger(): Promise<Transport | null> {
+async function forceConnectToLedger(): Promise<Transport | null> {
     if (await TransportWebHID.isSupported()) {
         return await TransportWebHID.openConnected();
     } else if (await TransportWebUSB.isSupported()) {
