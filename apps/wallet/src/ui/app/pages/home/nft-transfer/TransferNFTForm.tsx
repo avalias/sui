@@ -50,22 +50,15 @@ export function TransferNFTForm({ objectId }: { objectId: string }) {
             tx.setGasBudget(DEFAULT_NFT_TRANSFER_GAS_FEE);
             tx.transferObjects([tx.object(objectId)], tx.pure(to));
 
-            const transactionData = {
+            const initializedSigner = await signer();
+            return initializedSigner.signAndExecuteTransaction({
                 transaction: tx,
                 options: {
                     showInput: true,
                     showEffects: true,
                     showEvents: true,
                 },
-            };
-
-            if (signer instanceof SignerWithProvider) {
-                return signer.signAndExecuteTransaction(transactionData);
-            }
-            const initializedLedgerSigner = await signer();
-            return initializedLedgerSigner.signAndExecuteTransaction(
-                transactionData
-            );
+            });
         },
         onSuccess: (response) => {
             queryClient.invalidateQueries(['object', objectId]);

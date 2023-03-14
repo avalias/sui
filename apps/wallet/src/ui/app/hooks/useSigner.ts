@@ -23,9 +23,12 @@ export function useSigner(address?: SuiAddress) {
         throw new Error("Can't find account for the signer address");
     }
 
-    if (signerAccount.type === AccountType.LEDGER) {
-        return () =>
-            initializeLedgerSignerInstance(signerAccount.derivationPath);
-    }
-    return api.getSignerInstance(signerAccount, background);
+    return async () => {
+        if (signerAccount.type === AccountType.LEDGER) {
+            return await initializeLedgerSignerInstance(
+                signerAccount.derivationPath
+            );
+        }
+        return api.getSignerInstance(signerAccount, background);
+    };
 }

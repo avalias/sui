@@ -87,7 +87,7 @@ export class Coin {
      * @param validator The sui address of the chosen validator
      */
     public static async stakeCoin(
-        signer: SignerWithProvider | (() => Promise<LedgerSigner>),
+        signer: () => Promise<SignerWithProvider>,
         amount: bigint,
         validator: SuiAddress
     ): Promise<SuiTransactionResponse> {
@@ -120,13 +120,15 @@ export class Coin {
                 },
             };
 
-            if (signer instanceof SignerWithProvider) {
-                return await signer.signAndExecuteTransaction(transactionData);
-            }
-            const initializedLedgerSigner = await signer();
-            return await initializedLedgerSigner.signAndExecuteTransaction(
-                transactionData
-            );
+            const initializedSigner = await signer();
+            return await initializedSigner.signAndExecuteTransaction({
+                transaction: tx,
+                options: {
+                    showInput: true,
+                    showEffects: true,
+                    showEvents: true,
+                },
+            });
         } finally {
             span.finish();
             transaction.finish();
@@ -134,7 +136,7 @@ export class Coin {
     }
 
     public static async unStakeCoin(
-        signer: SignerWithProvider | (() => Promise<LedgerSigner>),
+        signer: () => Promise<SignerWithProvider>,
         stakedSuiId: ObjectId
     ): Promise<SuiTransactionResponse> {
         const transaction = Sentry.startTransaction({ name: 'unstake' });
@@ -149,22 +151,15 @@ export class Coin {
                 ],
             });
 
-            const transactionData = {
+            const initializedSigner = await signer();
+            return await initializedSigner.signAndExecuteTransaction({
                 transaction: tx,
                 options: {
                     showInput: true,
                     showEffects: true,
                     showEvents: true,
                 },
-            };
-
-            if (signer instanceof SignerWithProvider) {
-                return await signer.signAndExecuteTransaction(transactionData);
-            }
-            const initializedLedgerSigner = await signer();
-            return await initializedLedgerSigner.signAndExecuteTransaction(
-                transactionData
-            );
+            });
         } finally {
             transaction.finish();
         }

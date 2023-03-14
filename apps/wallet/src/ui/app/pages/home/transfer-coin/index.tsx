@@ -71,24 +71,15 @@ function TransferCoinPage() {
                             }))
                     );
 
-                    const transactionData = {
+                    const initializedSigner = await signer();
+                    return initializedSigner.signAndExecuteTransaction({
                         transaction: tx,
                         options: {
                             showInput: true,
                             showEffects: true,
                             showEvents: true,
                         },
-                    };
-
-                    if (signer instanceof SignerWithProvider) {
-                        return signer.signAndExecuteTransaction(
-                            transactionData
-                        );
-                    }
-                    const initializedLedgerSigner = await signer();
-                    return initializedLedgerSigner.signAndExecuteTransaction(
-                        transactionData
-                    );
+                    });
                 }
 
                 const bigIntAmount = parseAmount(formData.amount, coinDecimals);
@@ -117,22 +108,15 @@ function TransferCoinPage() {
                     tx.transferObjects([coin], tx.pure(formData.to));
                 }
 
-                const transactionData = {
+                const initializedSigner = await signer();
+                return initializedSigner.signAndExecuteTransaction({
                     transaction: tx,
                     options: {
                         showInput: true,
                         showEffects: true,
                         showEvents: true,
                     },
-                };
-
-                if (signer instanceof SignerWithProvider) {
-                    return signer.signAndExecuteTransaction(transactionData);
-                }
-                const initializedLedgerSigner = await signer();
-                return initializedLedgerSigner.signAndExecuteTransaction(
-                    transactionData
-                );
+                });
             } catch (error) {
                 transaction.setTag('failure', true);
                 throw error;
