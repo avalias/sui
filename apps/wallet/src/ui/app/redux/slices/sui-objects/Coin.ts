@@ -123,9 +123,10 @@ export class Coin {
             if (signer instanceof SignerWithProvider) {
                 return await signer.signAndExecuteTransaction(transactionData);
             }
-            return await (
-                await signer()
-            )?.signAndExecuteTransaction(transactionData);
+            const initializedLedgerSigner = await signer();
+            return await initializedLedgerSigner.signAndExecuteTransaction(
+                transactionData
+            );
         } finally {
             span.finish();
             transaction.finish();
@@ -160,9 +161,10 @@ export class Coin {
             if (signer instanceof SignerWithProvider) {
                 return await signer.signAndExecuteTransaction(transactionData);
             }
-            return await (
-                await signer()
-            )?.signAndExecuteTransaction(transactionData);
+            const initializedLedgerSigner = await signer();
+            return await initializedLedgerSigner.signAndExecuteTransaction(
+                transactionData
+            );
         } finally {
             transaction.finish();
         }

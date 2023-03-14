@@ -85,7 +85,8 @@ function TransferCoinPage() {
                             transactionData
                         );
                     }
-                    return (await signer())?.signAndExecuteTransaction(
+                    const initializedLedgerSigner = await signer();
+                    return initializedLedgerSigner.signAndExecuteTransaction(
                         transactionData
                     );
                 }
@@ -128,7 +129,8 @@ function TransferCoinPage() {
                 if (signer instanceof SignerWithProvider) {
                     return signer.signAndExecuteTransaction(transactionData);
                 }
-                return (await signer())?.signAndExecuteTransaction(
+                const initializedLedgerSigner = await signer();
+                return initializedLedgerSigner.signAndExecuteTransaction(
                     transactionData
                 );
             } catch (error) {

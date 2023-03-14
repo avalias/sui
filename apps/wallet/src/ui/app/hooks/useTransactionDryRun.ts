@@ -21,7 +21,8 @@ export function useTransactionDryRun(
             if (signer instanceof SignerWithProvider) {
                 return signer.dryRunTransaction({ transaction });
             }
-            return (await signer())?.dryRunTransaction({ transaction });
+            const initializedSigner = await signer();
+            return initializedSigner.dryRunTransaction({ transaction });
         },
         enabled: !!signer,
     });
