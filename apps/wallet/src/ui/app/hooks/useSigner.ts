@@ -11,13 +11,12 @@ import type { SuiAddress } from '@mysten/sui.js';
 
 export function useSigner(address?: SuiAddress) {
     const activeAccount = useActiveAccount();
-    console.log('ACTIVE ACC', activeAccount);
     const existingAccounts = useAccounts();
     const signerAccount = address
         ? existingAccounts.find((account) => account.address === address)
         : activeAccount;
 
-    const [, , getLedgerSignerInstance] = useSuiLedgerClient();
+    const { initializeLedgerSignerInstance } = useSuiLedgerClient();
     const { api, background } = thunkExtras;
 
     if (!signerAccount) {
@@ -25,9 +24,8 @@ export function useSigner(address?: SuiAddress) {
     }
 
     if (signerAccount.type === AccountType.LEDGER) {
-        return () => getLedgerSignerInstance(signerAccount.derivationPath);
+        return () =>
+            initializeLedgerSignerInstance(signerAccount.derivationPath);
     }
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    return api.getSignerInstance(signerAccount, background, null);
+    return api.getSignerInstance(signerAccount, background);
 }
