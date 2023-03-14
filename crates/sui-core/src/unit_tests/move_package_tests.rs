@@ -304,7 +304,7 @@ fn test_fail_on_missing_dep() {
 
     assert_eq!(
         err.kind(),
-        &ExecutionErrorKind::PublishUpgradeMissingImmediateDependency
+        &ExecutionErrorKind::PublishUpgradeMissingDependency
     );
 }
 
@@ -336,7 +336,7 @@ fn test_fail_on_missing_transitive_dep() {
 
     assert_eq!(
         err.kind(),
-        &ExecutionErrorKind::PublishUpgradeMissingIndirectDependency
+        &ExecutionErrorKind::PublishUpgradeMissingDependency
     );
 }
 
