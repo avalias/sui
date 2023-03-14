@@ -111,15 +111,6 @@ export class Coin {
                 ],
             });
 
-            const transactionData = {
-                transaction: tx,
-                options: {
-                    showInput: true,
-                    showEffects: true,
-                    showEvents: true,
-                },
-            };
-
             const initializedSigner = await signer();
             return await initializedSigner.signAndExecuteTransaction({
                 transaction: tx,
