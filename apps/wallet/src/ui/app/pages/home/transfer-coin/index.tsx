@@ -5,7 +5,6 @@ import { useCoinDecimals } from '@mysten/core';
 import { ArrowRight16, ArrowLeft16 } from '@mysten/icons';
 import {
     getTransactionDigest,
-    SignerWithProvider,
     SUI_TYPE_ARG,
     Transaction,
 } from '@mysten/sui.js';

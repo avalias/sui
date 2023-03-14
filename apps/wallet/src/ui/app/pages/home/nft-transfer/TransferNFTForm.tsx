@@ -4,7 +4,6 @@
 import { ArrowRight16 } from '@mysten/icons';
 import {
     getTransactionDigest,
-    SignerWithProvider,
     SUI_TYPE_ARG,
     Transaction,
 } from '@mysten/sui.js';
