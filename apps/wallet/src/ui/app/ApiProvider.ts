@@ -4,13 +4,19 @@
 import { SentryRpcClient } from '@mysten/core';
 import { Connection, JsonRpcProvider } from '@mysten/sui.js';
 
+import { LedgerSigner } from './LedgerSigner';
 import { BackgroundServiceSigner } from './background-client/BackgroundServiceSigner';
 import { queryClient } from './helpers/queryClient';
 import { growthbook } from '_app/experimentation/feature-gating';
+import {
+    AccountType,
+    type SerializedAccount,
+} from '_src/background/keyring/Account';
 import { API_ENV } from '_src/shared/api-env';
 import { FEATURES } from '_src/shared/experimentation/features';
 
 import type { BackgroundClient } from './background-client';
+import type SuiLedgerClient from '@mysten/ledgerjs-hw-app-sui';
 import type { SuiAddress, SignerWithProvider } from '@mysten/sui.js';
 
 type EnvInfo = {
@@ -81,7 +87,8 @@ export const generateActiveNetworkList = (): NetworkTypes[] => {
 
 export default class ApiProvider {
     private _apiFullNodeProvider?: JsonRpcProvider;
-    private _signerByAddress: Map<SuiAddress, SignerWithProvider> = new Map();
+    private _softwareSignerByAddress: Map<SuiAddress, SignerWithProvider> =
+        new Map();
 
     public setNewJsonRpcProvider(
         apiEnv: API_ENV = DEFAULT_API_ENV,
@@ -96,7 +103,9 @@ export default class ApiProvider {
                     ? new SentryRpcClient(connection.fullnode)
                     : undefined,
         });
-        this._signerByAddress.clear();
+
+        this._softwareSignerByAddress.clear();
+
         // We also clear the query client whenever set set a new API provider:
         queryClient.resetQueries();
         queryClient.clear();
@@ -113,14 +122,45 @@ export default class ApiProvider {
     }
 
     public getSignerInstance(
-        address: SuiAddress,
+        account: SerializedAccount,
         backgroundClient: BackgroundClient
     ): SignerWithProvider {
         if (!this._apiFullNodeProvider) {
             this.setNewJsonRpcProvider();
         }
-        if (!this._signerByAddress.has(address)) {
-            this._signerByAddress.set(
+
+        switch (account.type) {
+            case AccountType.DERIVED:
+            case AccountType.IMPORTED:
+                return this.getSoftwareSignerInstance(
+                    account.address,
+                    backgroundClient
+                );
+            case AccountType.LEDGER:
+                // Ideally, Ledger transactions would be signed in the background
+                // and exist as an asynchronous keypair; however, this isn't possible
+                // because you can't connect to a Ledger device from the background
+                // script. Similarly, the signer instance can't be retrieved from
+                // here because ApiProvider is a global and results in very buggy
+                // behavior due to the reactive nature of managing Ledger connections
+                // and displaying relevant UI updates. Refactoring ApiProvider to
+                // not be a global instance would help out here, but that is also
+                // a non-trivial task because we need access to ApiProvider in the
+                // background script as well.
+                throw new Error(
+                    "Signing with Ledger via ApiProvider isn't supported"
+                );
+            default:
+                throw new Error('Encountered unknown account type');
+        }
+    }
+
+    public getSoftwareSignerInstance(
+        address: SuiAddress,
+        backgroundClient: BackgroundClient
+    ): SignerWithProvider {
+        if (!this._softwareSignerByAddress.has(address)) {
+            this._softwareSignerByAddress.set(
                 address,
                 new BackgroundServiceSigner(
                     address,
@@ -129,7 +169,6 @@ export default class ApiProvider {
                 )
             );
         }
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return this._signerByAddress.get(address)!;
+        return this._softwareSignerByAddress.get(address)!;
     }
 }
