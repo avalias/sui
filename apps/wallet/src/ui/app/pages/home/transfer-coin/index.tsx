@@ -71,32 +71,23 @@ function TransferCoinPage() {
                             }))
                     );
 
-<<<<<<< HEAD
-                    return signer.signAndExecuteTransaction({
+                    const transactionData = {
                         transaction: tx,
                         options: {
                             showInput: true,
                             showEffects: true,
                             showEvents: true,
                         },
-                    });
-=======
-                    const transactionOptions = {
-                        showInput: true,
-                        showEffects: true,
-                        showEvents: true,
                     };
+
                     if (signer instanceof SignerWithProvider) {
                         return signer.signAndExecuteTransaction(
-                            tx,
-                            transactionOptions
+                            transactionData
                         );
                     }
                     return (await signer())?.signAndExecuteTransaction(
-                        tx,
-                        transactionOptions
+                        transactionData
                     );
->>>>>>> dcfb0d969 (work)
                 }
 
                 const bigIntAmount = parseAmount(formData.amount, coinDecimals);
@@ -132,12 +123,10 @@ function TransferCoinPage() {
                         showEffects: true,
                         showEvents: true,
                     },
-                }
-            
+                };
+
                 if (signer instanceof SignerWithProvider) {
-                    return signer.signAndExecuteTransaction(
-                        transactionData
-                    );
+                    return signer.signAndExecuteTransaction(transactionData);
                 }
                 return (await signer())?.signAndExecuteTransaction(
                     transactionData

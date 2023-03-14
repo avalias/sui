@@ -87,8 +87,7 @@ export const generateActiveNetworkList = (): NetworkTypes[] => {
 
 export default class ApiProvider {
     private _apiFullNodeProvider?: JsonRpcProvider;
-    private _softwareSignerByAddress: Map<SuiAddress, SignerWithProvider> =
-        new Map();
+    private _signerByAddress: Map<SuiAddress, SignerWithProvider> = new Map();
 
     public setNewJsonRpcProvider(
         apiEnv: API_ENV = DEFAULT_API_ENV,
@@ -104,7 +103,7 @@ export default class ApiProvider {
                     : undefined,
         });
 
-        this._softwareSignerByAddress.clear();
+        this._signerByAddress.clear();
 
         // We also clear the query client whenever set set a new API provider:
         queryClient.resetQueries();
@@ -132,7 +131,7 @@ export default class ApiProvider {
         switch (account.type) {
             case AccountType.DERIVED:
             case AccountType.IMPORTED:
-                return this.getSoftwareSignerInstance(
+                return this.getBackgroundSignerInstance(
                     account.address,
                     backgroundClient
                 );
@@ -155,12 +154,12 @@ export default class ApiProvider {
         }
     }
 
-    public getSoftwareSignerInstance(
+    public getBackgroundSignerInstance(
         address: SuiAddress,
         backgroundClient: BackgroundClient
     ): SignerWithProvider {
-        if (!this._softwareSignerByAddress.has(address)) {
-            this._softwareSignerByAddress.set(
+        if (!this._signerByAddress.has(address)) {
+            this._signerByAddress.set(
                 address,
                 new BackgroundServiceSigner(
                     address,
@@ -169,6 +168,6 @@ export default class ApiProvider {
                 )
             );
         }
-        return this._softwareSignerByAddress.get(address)!;
+        return this._signerByAddress.get(address)!;
     }
 }
