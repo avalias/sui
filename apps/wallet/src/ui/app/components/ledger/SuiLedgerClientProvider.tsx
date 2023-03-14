@@ -17,10 +17,9 @@ import { LedgerSigner } from '../../LedgerSigner';
 import { api } from '../../redux/store/thunk-extras';
 import {
     LedgerConnectionFailedError,
+    LedgerDeviceNotFoundError,
     LedgerNoTransportMechanismError,
 } from './LedgerExceptions';
-
-import type Transport from '@ledgerhq/hw-transport';
 
 type SuiLedgerClientProviderProps = {
     children: React.ReactNode;
@@ -56,7 +55,7 @@ export function SuiLedgerClientProvider({
         async (derivationPath: string) => {
             if (!suiLedgerClient) {
                 try {
-                    const transport = await getLedgerTransport();
+                    const transport = await forceConnectionToLedger();
                     const newClient = new SuiLedgerClient(transport);
                     setSuiLedgerClient(newClient);
 
@@ -66,7 +65,7 @@ export function SuiLedgerClientProvider({
                         api.instance.fullNode
                     );
                 } catch (error) {
-                    throw new Error('F');
+                    throw new Error('Failed to connect');
                 }
             }
 
@@ -86,7 +85,7 @@ export function SuiLedgerClientProvider({
             await suiLedgerClient.transport.close();
         }
 
-        const ledgerTransport = await getLedgerTransport(true);
+        const ledgerTransport = await requestConnectionToLedger();
         const ledgerClient = new SuiLedgerClient(ledgerTransport);
         setSuiLedgerClient(ledgerClient);
         return ledgerClient;
@@ -117,14 +116,30 @@ export function useSuiLedgerClient() {
     return suiLedgerClientContext;
 }
 
-async function getLedgerTransport(requestPermissionsFirst = false) {
-    let ledgerTransport: Transport | null | undefined;
-
+async function requestConnectionToLedger() {
     try {
-        if (requestPermissionsFirst) {
-            ledgerTransport = await requestConnectToLedger();
-        } else {
-            ledgerTransport = await forceConnectToLedger();
+        if (await TransportWebHID.isSupported()) {
+            return await TransportWebHID.request();
+        } else if (await TransportWebUSB.isSupported()) {
+            return await TransportWebUSB.request();
+        }
+    } catch (error) {
+        throw new LedgerConnectionFailedError(
+            "Unable to connect to the user's Ledger device"
+        );
+    }
+    throw new LedgerNoTransportMechanismError(
+        "There are no supported transport mechanisms to connect to the user's Ledger device"
+    );
+}
+
+async function forceConnectionToLedger() {
+    let transport: TransportWebHID | TransportWebUSB | null | undefined;
+    try {
+        if (await TransportWebHID.isSupported()) {
+            transport = await TransportWebHID.openConnected();
+        } else if (await TransportWebUSB.isSupported()) {
+            transport = await TransportWebUSB.openConnected();
         }
     } catch (error) {
         throw new LedgerConnectionFailedError(
@@ -132,29 +147,10 @@ async function getLedgerTransport(requestPermissionsFirst = false) {
         );
     }
 
-    if (!ledgerTransport) {
-        throw new LedgerNoTransportMechanismError(
-            "There are no supported transport mechanisms to connect to the user's Ledger device"
+    if (!transport) {
+        throw new LedgerDeviceNotFoundError(
+            'Connected Ledger device not found'
         );
     }
-
-    return ledgerTransport;
-}
-
-async function requestConnectToLedger(): Promise<Transport | null> {
-    if (await TransportWebHID.isSupported()) {
-        return await TransportWebHID.request();
-    } else if (await TransportWebUSB.isSupported()) {
-        return await TransportWebUSB.request();
-    }
-    return null;
-}
-
-async function forceConnectToLedger(): Promise<Transport | null> {
-    if (await TransportWebHID.isSupported()) {
-        return await TransportWebHID.openConnected();
-    } else if (await TransportWebUSB.isSupported()) {
-        return await TransportWebUSB.openConnected();
-    }
-    return null;
+    return transport;
 }
