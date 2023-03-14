@@ -86,14 +86,14 @@ const accountsAdapter = createEntityAdapter<SerializedAccount>({
 
 type AccountState = {
     creating: boolean;
-    serializedInfo: SerializedAccount | null;
+    address: SuiAddress | null;
     isLocked: boolean | null;
     isInitialized: boolean | null;
 };
 
 const initialState = accountsAdapter.getInitialState<AccountState>({
     creating: false,
-    serializedInfo: null,
+    address: null,
     isLocked: null,
     isInitialized: null,
 });
@@ -112,7 +112,8 @@ const accountSlice = createSlice({
         ) => {
             state.isLocked = payload.isLocked;
             state.isInitialized = payload.isInitialized;
-            state.address = payload.activeAddress; // is already normalized
+            // The addresses are already normalized at this point
+            state.address = payload.activeAddress;
             accountsAdapter.setAll(state, payload.accounts);
         },
     },
