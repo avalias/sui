@@ -241,7 +241,8 @@ impl CheckpointBlockProvider {
                     SuiTransactionResponseOptions::new()
                         .with_input()
                         .with_effects()
-                        .with_balance_changes(),
+                        .with_balance_changes()
+                        .with_events(),
                 )
                 .await?;
             transactions.push(Transaction {
@@ -311,7 +312,7 @@ fn extract_balance_changes_from_ops(ops: Operations) -> HashMap<SuiAddress, i128
                     OperationType::SuiBalanceChange
                     | OperationType::Gas
                     | OperationType::PaySui
-                    | OperationType::Delegation => {
+                    | OperationType::Stake => {
                         if let (Some(addr), Some(amount)) = (op.account, op.amount) {
                             *changes.entry(addr.address).or_default() += amount.value
                         }
