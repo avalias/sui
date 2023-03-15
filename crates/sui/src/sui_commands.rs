@@ -98,6 +98,20 @@ pub enum SuiCommand {
         #[clap(short = 'y', long = "yes")]
         accept_defaults: bool,
     },
+    /// A tool for validators and validator candidates.
+    #[clap(name = "validator")]
+    Validator {
+        /// Sets the file storing the state of our user accounts (an empty one will be created if missing)
+        #[clap(long = "client.config")]
+        config: Option<PathBuf>,
+        #[clap(subcommand)]
+        cmd: Option<SuiClientCommands>,
+        /// Return command outputs in json format.
+        #[clap(long, global = true)]
+        json: bool,
+        #[clap(short = 'y', long = "yes")]
+        accept_defaults: bool,
+    },
 
     /// Tool to build and test Move applications.
     #[clap(name = "move")]
@@ -230,6 +244,25 @@ impl SuiCommand {
                 start_console(context, &mut stdout(), &mut stderr()).await
             }
             SuiCommand::Client {
+                config,
+                cmd,
+                json,
+                accept_defaults,
+            } => {
+                let config_path = config.unwrap_or(sui_config_dir()?.join(SUI_CLIENT_CONFIG));
+                prompt_if_no_config(&config_path, accept_defaults).await?;
+                let mut context = WalletContext::new(&config_path, None).await?;
+                if let Some(cmd) = cmd {
+                    cmd.execute(&mut context).await?.print(!json);
+                } else {
+                    // Print help
+                    let mut app: Command = SuiCommand::command();
+                    app.build();
+                    app.find_subcommand_mut("client").unwrap().print_help()?;
+                }
+                Ok(())
+            }
+            SuiCommand::Validator {
                 config,
                 cmd,
                 json,
