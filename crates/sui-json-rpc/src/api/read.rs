@@ -209,8 +209,8 @@ pub trait ReadApi {
     #[method(name = "getCheckpoints")]
     async fn get_checkpoints(
         &self,
-        /// Optional paging cursor
-        cursor: Option<usize>,
+        /// exclusive cursor if `Some`, otherwise start from the beginning
+        cursor: Option<CheckpointSequenceNumber>,
         /// Maximum item returned per page, default to QUERY_MAX_RESULT_LIMIT if not specified.
         limit: Option<usize>,
         /// query result ordering, default to false (ascending order), oldest record first.

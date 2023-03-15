@@ -34,4 +34,9 @@ describe('Checkpoints Reading API', () => {
     const resp = await toolbox.provider.getCheckpoint({ id: digest });
     expect(checkpoint_resp).toEqual(resp);
   });
+
+  it('getCheckpoints', async () => {
+    const checkpoints = await toolbox.provider.getCheckpoints({cursor: null, limit: null, descending_order: false});
+    console.log(checkpoints)
+  });
 });

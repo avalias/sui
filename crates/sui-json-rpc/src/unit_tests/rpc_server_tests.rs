@@ -557,14 +557,18 @@ async fn test_get_checkpoints() -> Result<(), anyhow::Error> {
 
     let ch: CheckpointPage = http_client.get_checkpoints(None, 2.into(), false).await?;
     assert_eq!(2, ch.data.len());
-    assert_eq!(2, ch.next_cursor.unwrap());
+    assert_eq!(1, ch.next_cursor.unwrap());
 
     let ch1: CheckpointPage = http_client
-        .get_checkpoints(2.into(), 3.into(), false)
+        .get_checkpoints(ch.next_cursor, 3.into(), false)
         .await?;
     assert_eq!(2, ch1.data[0].sequence_number);
 
     let ch2: CheckpointPage = http_client.get_checkpoints(None, 3.into(), true).await?;
+    let ch3: CheckpointPage = http_client.get_checkpoints(ch2.next_cursor, 3.into(), true).await?;
+    println!("{:?}", ch3);
+    println!("{}", last_checkpoint);
+    println!("{:?}", ch2);
     assert_eq!(last_checkpoint, ch2.data[0].sequence_number);
 
     Ok(())

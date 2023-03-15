@@ -63,6 +63,7 @@ import { toB64 } from '@mysten/bcs';
 import { SerializedSignature } from '../cryptography/signature';
 import { Connection, devnetConnection } from '../rpc/connection';
 import { Transaction } from '../builder';
+import { CheckpointPage } from '../types/checkpoints';
 
 export const TARGETED_RPC_VERSION = '0.27.0';
 
@@ -1093,6 +1094,26 @@ export class JsonRpcProvider {
     } catch (err) {
       throw new Error(
         `Error getting checkpoint with request type: ${err} for id: ${input.id}.`,
+      );
+    }
+  }
+
+  async getCheckpoints(input: {
+    cursor?: number | null;
+    limit?: number | null;
+    descending_order: boolean;
+  }): Promise<CheckpointPage> {
+    try {
+      const resp = await this.client.requestWithType(
+        'sui_getCheckpoints',
+        [input.cursor, input.limit, input.descending_order],
+        CheckpointPage,
+        this.options.skipDataValidation,
+      );
+      return resp;
+    } catch (err) {
+      throw new Error(
+        `Error getting checkpoints with request type: ${err} for cursor: ${input.cursor}.`,
       );
     }
   }

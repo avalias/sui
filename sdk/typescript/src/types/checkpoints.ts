@@ -10,6 +10,7 @@ import {
   string,
   union,
   tuple,
+  boolean,
 } from 'superstruct';
 
 import { TransactionDigest, TransactionEffectsDigest } from './common';
@@ -60,3 +61,10 @@ export const Checkpoint = object({
   checkpointCommitments: array(CheckpointCommitment),
 });
 export type Checkpoint = Infer<typeof Checkpoint>;
+
+export const CheckpointPage = object({
+  data: array(Checkpoint),
+  nextCursor: union([number(), literal(null)]),
+  hasNextPage: boolean(),
+});
+export type CheckpointPage = Infer<typeof CheckpointPage>;

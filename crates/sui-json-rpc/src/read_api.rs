@@ -749,20 +749,25 @@ impl ReadApiServer for ReadApi {
 
     async fn get_checkpoints(
         &self,
-        cursor: Option<usize>,
+        cursor: Option<CheckpointSequenceNumber>,
         limit: Option<usize>,
         descending_order: bool,
     ) -> RpcResult<CheckpointPage> {
         let limit = cap_page_limit(limit);
 
-        let checkpoints = self.state.get_checkpoints(descending_order)?;
+        let checkpoints = self
+            .state
+            .get_checkpoints(cursor, limit, descending_order)?;
 
-        let start_index = cursor.unwrap_or(0);
+        let start_index = cursor.unwrap_or(0) as usize;
 
         let end_index = std::cmp::min(start_index + limit, checkpoints.len());
         let mut data = checkpoints[start_index..end_index].to_vec();
 
-        let mut next_cursor = Some(end_index);
+        let end_idx = end_index as u64;
+        println!("end_indx: {}", end_idx);
+
+        let mut next_cursor = Some(data.last().unwrap().sequence_number);
 
         let has_next_page = checkpoints.len() >= end_index;
         if !has_next_page {

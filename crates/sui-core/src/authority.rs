@@ -2423,10 +2423,27 @@ impl AuthorityState {
         }
     }
 
-    pub fn get_checkpoints(&self, reverse: bool) -> Result<Vec<Checkpoint>, anyhow::Error> {
+    pub fn get_checkpoints(
+        &self,
+        // exclusive cursor if `Some`, otherwise start from the beginning
+        cursor: Option<CheckpointSequenceNumber>,
+        limit: usize,
+        reverse: bool,
+    ) -> Result<Vec<Checkpoint>, anyhow::Error> {
         let max_checkpoint = self.get_latest_checkpoint_sequence_number()?;
+        // let values = (c..=end_index).collect::<Vec<_>>();
 
-        let values = (0..=max_checkpoint).collect::<Vec<_>>();
+
+        let c = cursor.unwrap_or(0);
+        let l = limit as u64;
+
+        let mut end_index = std::cmp::min(c + l + 1, max_checkpoint);
+
+        if reverse {
+            end_index = std::cmp::max(c + l + 1, max_checkpoint);
+        }
+
+        let values = (c..=end_index).collect::<Vec<_>>();
         let mut checkpoint_numbers = values;
 
         if reverse {
