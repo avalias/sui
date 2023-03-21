@@ -50,6 +50,9 @@ pub const MAX_REQUEST_SIZE: u32 = 2 << 30;
 #[cfg(test)]
 #[path = "unit_tests/rpc_server_tests.rs"]
 mod rpc_server_test;
+#[cfg(test)]
+#[path = "unit_tests/transaction_tests.rs"]
+mod transaction_tests;
 
 pub struct JsonRpcServerBuilder {
     module: RpcModule<()>,
@@ -148,6 +151,7 @@ impl JsonRpcServerBuilder {
             .layer(routing_layer);
 
         let server = ServerBuilder::default()
+            .batch_requests_supported(false)
             .max_response_body_size(MAX_REQUEST_SIZE)
             .max_connections(max_connection)
             .set_host_filtering(AllowHosts::Any)

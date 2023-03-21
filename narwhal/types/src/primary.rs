@@ -800,7 +800,9 @@ pub struct SendCertificateRequest {
 
 /// Response from peers after receiving a certificate.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SendCertificateResponse {}
+pub struct SendCertificateResponse {
+    pub accepted: bool,
+}
 
 /// Used by the primary to request a vote from other primaries on newly produced headers.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1018,6 +1020,16 @@ pub struct VoteInfo {
     pub round: Round,
     /// The hash of the vote used to ensure equality
     pub vote_digest: VoteDigest,
+}
+
+impl From<&Vote> for VoteInfo {
+    fn from(vote: &Vote) -> Self {
+        VoteInfo {
+            epoch: vote.epoch,
+            round: vote.round,
+            vote_digest: vote.digest(),
+        }
+    }
 }
 
 #[cfg(test)]

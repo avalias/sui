@@ -6,7 +6,7 @@
 				"link": "doc-updates/sui-migration-guide"
 			},
 			{
-				"label": "Sui Upcoming Breaking Changes",
+				"label": "Sui Breaking Changes",
 				"link": "doc-updates/sui-breaking-changes"
 			},
 			{
@@ -198,7 +198,12 @@
 				"label": "Connect to Sui",
 				"fileName": "build/comms",
 				"title": "Connect to Sui",
-				"items": [{
+				"items": [
+					{
+						"label": "Programmable Transactions with TypeScript SDK",
+						"fileName": "build/prog-trans-ts-sdk"
+					},
+					{
 						"label": "JSON-RPC API",
 						"fileName": "build/json-rpc"
 					},
@@ -243,28 +248,6 @@
 		"explore": [{
 				"label": "Sui Explorer",
 				"fileName": "explore/sui-explorer"
-			},
-			{
-				"label": "Sui Move by Example",
-				"fileName": "explore/move-examples/index",
-				"title": "Sui Move by Example",
-				"items": [{
-						"label": "Basics",
-						"fileName": "explore/move-examples/basics"
-					},
-					{
-						"label": "Patterns",
-						"fileName": "explore/move-examples/patterns"
-					},
-					{
-						"label": "Samples",
-						"fileName": "explore/move-examples/samples"
-					},
-					{
-						"label": "Additional Resources",
-						"fileName": "explore/move-examples/additional-resources"
-					}
-				]
 			},
 			{
 				"label": "Sui Wallet",

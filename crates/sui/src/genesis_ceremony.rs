@@ -5,12 +5,12 @@ use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use fastcrypto::encoding::{Encoding, Hex};
-use multiaddr::Multiaddr;
 use std::path::PathBuf;
 use sui_config::{
     genesis::{Builder, UnsignedGenesis},
     SUI_GENESIS_FILENAME,
 };
+use sui_types::multiaddr::Multiaddr;
 use sui_types::{
     base_types::{ObjectID, SuiAddress},
     committee::ProtocolVersion,
@@ -141,7 +141,7 @@ pub fn run(cmd: Ceremony) -> Result<()> {
                     name,
                     protocol_key: keypair.public().into(),
                     worker_key: worker_keypair.public().clone(),
-                    account_key: account_keypair.public(),
+                    account_address: SuiAddress::from(&account_keypair.public()),
                     network_key: network_keypair.public().clone(),
                     gas_price: 1,
                     commission_rate: 0,
@@ -276,7 +276,7 @@ mod test {
                     name: format!("validator-{i}"),
                     protocol_key: keypair.public().into(),
                     worker_key: worker_keypair.public().clone(),
-                    account_key: account_keypair.public().clone().into(),
+                    account_address: SuiAddress::from(account_keypair.public()),
                     network_key: network_keypair.public().clone(),
                     gas_price: 1,
                     commission_rate: 0,

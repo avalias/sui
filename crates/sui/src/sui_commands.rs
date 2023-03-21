@@ -29,6 +29,7 @@ use crate::console::start_console;
 use crate::fire_drill::{run_fire_drill, FireDrill};
 use crate::genesis_ceremony::{run, Ceremony};
 use crate::keytool::KeyToolCommand;
+use crate::validator_commands::SuiValidatorCommand;
 use sui_move::{self, execute_move_command};
 
 #[allow(clippy::large_enum_variant)]
@@ -92,6 +93,20 @@ pub enum SuiCommand {
         config: Option<PathBuf>,
         #[clap(subcommand)]
         cmd: Option<SuiClientCommands>,
+        /// Return command outputs in json format.
+        #[clap(long, global = true)]
+        json: bool,
+        #[clap(short = 'y', long = "yes")]
+        accept_defaults: bool,
+    },
+    /// A tool for validators and validator candidates.
+    #[clap(name = "validator")]
+    Validator {
+        /// Sets the file storing the state of our user accounts (an empty one will be created if missing)
+        #[clap(long = "client.config")]
+        config: Option<PathBuf>,
+        #[clap(subcommand)]
+        cmd: Option<SuiValidatorCommand>,
         /// Return command outputs in json format.
         #[clap(long, global = true)]
         json: bool,
@@ -248,6 +263,25 @@ impl SuiCommand {
                 }
                 Ok(())
             }
+            SuiCommand::Validator {
+                config,
+                cmd,
+                json,
+                accept_defaults,
+            } => {
+                let config_path = config.unwrap_or(sui_config_dir()?.join(SUI_CLIENT_CONFIG));
+                prompt_if_no_config(&config_path, accept_defaults).await?;
+                let mut context = WalletContext::new(&config_path, None).await?;
+                if let Some(cmd) = cmd {
+                    cmd.execute(&mut context).await?.print(!json);
+                } else {
+                    // Print help
+                    let mut app: Command = SuiCommand::command();
+                    app.build();
+                    app.find_subcommand_mut("validator").unwrap().print_help()?;
+                }
+                Ok(())
+            }
             SuiCommand::Move {
                 package_path,
                 build_config,
@@ -321,7 +355,7 @@ async fn genesis(
                 })?;
             }
         } else if files.len() != 2 || !client_path.exists() || !keystore_path.exists() {
-            bail!("Cannot run genesis with non-empty Sui config directory {}, please use --force/-f option to remove existing configuration", sui_config_dir.to_str().unwrap());
+            bail!("Cannot run genesis with non-empty Sui config directory {}, please use the --force/-f option to remove the existing configuration", sui_config_dir.to_str().unwrap());
         }
     }
 
@@ -438,10 +472,10 @@ async fn prompt_if_no_config(
             }),
             None => {
                 if accept_defaults {
-                    print!("Creating config file [{:?}] with default (devnet) full node server and ed25519 key scheme.", wallet_conf_path);
+                    print!("Creating config file [{:?}] with default (devnet) Full node server and ed25519 key scheme.", wallet_conf_path);
                 } else {
                     print!(
-                        "Config file [{:?}] doesn't exist, do you want to connect to a Sui full node server [yN]?",
+                        "Config file [{:?}] doesn't exist, do you want to connect to a Sui Full node server [y/N]?",
                         wallet_conf_path
                     );
                 }
@@ -452,7 +486,7 @@ async fn prompt_if_no_config(
                         String::new()
                     } else {
                         print!(
-                            "Sui full node server url (Default to Sui DevNet if not specified) : "
+                            "Sui Full node server URL (Defaults to Sui Devnet if not specified) : "
                         );
                         read_line()?
                     };
@@ -487,7 +521,7 @@ async fn prompt_if_no_config(
             let key_scheme = if accept_defaults {
                 SignatureScheme::ED25519
             } else {
-                println!("Select key scheme to generate keypair (0 for ed25519, 1 for secp256k1, 2: for secp256r1:");
+                println!("Select key scheme to generate keypair (0 for ed25519, 1 for secp256k1, 2: for secp256r1):");
                 match SignatureScheme::from_flag(read_line()?.trim()) {
                     Ok(s) => s,
                     Err(e) => return Err(anyhow!("{e}")),

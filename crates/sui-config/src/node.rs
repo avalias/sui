@@ -5,7 +5,6 @@ use crate::genesis;
 use crate::p2p::P2pConfig;
 use crate::Config;
 use anyhow::Result;
-use multiaddr::Multiaddr;
 use narwhal_config::Parameters as ConsensusParameters;
 use once_cell::sync::OnceCell;
 use rand::rngs::OsRng;
@@ -24,9 +23,9 @@ use sui_types::crypto::AuthorityPublicKeyBytes;
 use sui_types::crypto::KeypairTraits;
 use sui_types::crypto::NetworkKeyPair;
 use sui_types::crypto::NetworkPublicKey;
-use sui_types::crypto::PublicKey as AccountsPublicKey;
 use sui_types::crypto::SuiKeyPair;
 use sui_types::crypto::{get_key_pair_from_rng, AccountKeyPair, AuthorityKeyPair};
+use sui_types::multiaddr::Multiaddr;
 
 // Default max number of concurrent requests served
 pub const DEFAULT_GRPC_CONCURRENCY_LIMIT: usize = 20000000000;
@@ -105,8 +104,7 @@ fn default_authority_store_pruning_config() -> AuthorityStorePruningConfig {
 }
 
 fn default_grpc_address() -> Multiaddr {
-    use multiaddr::multiaddr;
-    multiaddr!(Ip4([0, 0, 0, 0]), Tcp(8080u16))
+    "/ip4/0.0.0.0/tcp/8080".parse().unwrap()
 }
 fn default_authority_key_pair() -> AuthorityKeyPairWithPath {
     AuthorityKeyPairWithPath::new(get_key_pair_from_rng::<AuthorityKeyPair, _>(&mut OsRng).1)
@@ -351,7 +349,7 @@ pub struct DBCheckpointConfig {
 #[serde(rename_all = "kebab-case")]
 pub struct ValidatorInfo {
     pub name: String,
-    pub account_key: AccountsPublicKey,
+    pub account_address: SuiAddress,
     pub protocol_key: AuthorityPublicKeyBytes,
     pub worker_key: NetworkPublicKey,
     pub network_key: NetworkPublicKey,
@@ -372,7 +370,7 @@ impl ValidatorInfo {
     }
 
     pub fn sui_address(&self) -> SuiAddress {
-        self.account_key().into()
+        self.account_address
     }
 
     pub fn protocol_key(&self) -> AuthorityPublicKeyBytes {
@@ -385,10 +383,6 @@ impl ValidatorInfo {
 
     pub fn network_key(&self) -> &NetworkPublicKey {
         &self.network_key
-    }
-
-    pub fn account_key(&self) -> &AccountsPublicKey {
-        &self.account_key
     }
 
     pub fn gas_price(&self) -> u64 {

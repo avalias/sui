@@ -5,9 +5,9 @@
 use super::base_types::*;
 use crate::crypto::{random_committee_key_pairs_of_size, AuthorityKeyPair, AuthorityPublicKey};
 use crate::error::{SuiError, SuiResult};
+use crate::multiaddr::Multiaddr;
 use fastcrypto::traits::KeyPair;
 use itertools::Itertools;
-use multiaddr::Multiaddr;
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use rand::Rng;
@@ -343,6 +343,7 @@ pub fn validity_threshold(total_stake: StakeUnit) -> StakeUnit {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NetworkMetadata {
     pub network_address: Multiaddr,
+    pub narwhal_primary_address: Multiaddr,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

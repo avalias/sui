@@ -23,6 +23,8 @@ module sui::sui_system_state_inner {
     use sui::url;
     use std::string;
     use std::ascii;
+    use sui::bag::Bag;
+    use sui::bag;
 
     friend sui::sui_system;
 
@@ -45,12 +47,13 @@ module sui::sui_system_state_inner {
     struct SystemParameters has store {
         /// The starting epoch in which various on-chain governance features take effect:
         /// - stake subsidies are paid out
-        /// - TODO validators with stake less than a 'validator_stake_threshold' are
-        ///   kicked from the validator set
         governance_start_epoch: u64,
 
         /// The duration of an epoch, in milliseconds.
         epoch_duration_ms: u64,
+
+        /// Any extra fields that's not defined statically.
+        extra_fields: Bag,
     }
 
     /// The top-level object containing all information of the Sui system.
@@ -86,11 +89,12 @@ module sui::sui_system_state_inner {
         /// Whether the system is running in a downgraded safe mode due to a non-recoverable bug.
         /// This is set whenever we failed to execute advance_epoch, and ended up executing advance_epoch_safe_mode.
         /// It can be reset once we are able to successfully execute advance_epoch.
-        /// TODO: Down the road we may want to save a few states such as pending gas rewards, so that we could
-        /// redistribute them.
+        /// MUSTFIX: We need to save pending gas rewards, so that we could redistribute them.
         safe_mode: bool,
         /// Unix timestamp of the current epoch start
         epoch_start_timestamp_ms: u64,
+        /// Any extra fields that's not defined statically.
+        extra_fields: Bag,
     }
 
     /// Event containing system-level epoch information, emitted during
@@ -145,12 +149,14 @@ module sui::sui_system_state_inner {
         validators: vector<Validator>,
         stake_subsidy_fund: Balance<SUI>,
         storage_fund: Balance<SUI>,
-        governance_start_epoch: u64,
-        initial_stake_subsidy_amount: u64,
         protocol_version: u64,
         system_state_version: u64,
+        governance_start_epoch: u64,
         epoch_start_timestamp_ms: u64,
         epoch_duration_ms: u64,
+        initial_stake_subsidy_distribution_amount: u64,
+        stake_subsidy_period_length: u64,
+        stake_subsidy_decrease_rate: u16,
         ctx: &mut TxContext,
     ): SuiSystemStateInner {
         let validators = validator_set::new(validators, ctx);
@@ -164,12 +170,20 @@ module sui::sui_system_state_inner {
             parameters: SystemParameters {
                 governance_start_epoch,
                 epoch_duration_ms,
+                extra_fields: bag::new(ctx),
             },
             reference_gas_price,
             validator_report_records: vec_map::empty(),
-            stake_subsidy: stake_subsidy::create(stake_subsidy_fund, initial_stake_subsidy_amount),
+            stake_subsidy: stake_subsidy::create(
+                stake_subsidy_fund,
+                initial_stake_subsidy_distribution_amount,
+                stake_subsidy_period_length,
+                stake_subsidy_decrease_rate,
+                ctx
+            ),
             safe_mode: false,
             epoch_start_timestamp_ms,
+            extra_fields: bag::new(ctx),
         };
         system_state
     }
@@ -214,14 +228,12 @@ module sui::sui_system_state_inner {
             p2p_address,
             primary_address,
             worker_address,
-            option::none(),
             gas_price,
             commission_rate,
-            false, // not an initial validator active at genesis
             ctx
         );
 
-        validator_set::request_add_validator_candidate(&mut self.validators, validator);
+        validator_set::request_add_validator_candidate(&mut self.validators, validator, ctx);
     }
 
     /// Called by a validator candidate to remove themselves from the candidacy. After this call
@@ -272,7 +284,7 @@ module sui::sui_system_state_inner {
         new_gas_price: u64,
     ) {
         // Verify the represented address is an active or pending validator, and the capability is still valid.
-        let verified_cap = validator_set::verify_cap(&self.validators, cap, ACTIVE_OR_PENDING_VALIDATOR);
+        let verified_cap = validator_set::verify_cap(&mut self.validators, cap, ACTIVE_OR_PENDING_VALIDATOR);
         let validator = validator_set::get_validator_mut_with_verified_cap(&mut self.validators, &verified_cap, false /* include_candidate */);
 
         validator::request_set_gas_price(validator, verified_cap, new_gas_price);
@@ -285,7 +297,7 @@ module sui::sui_system_state_inner {
         new_gas_price: u64,
     ) {
         // Verify the represented address is an active or pending validator, and the capability is still valid.
-        let verified_cap = validator_set::verify_cap(&self.validators, cap, ANY_VALIDATOR);
+        let verified_cap = validator_set::verify_cap(&mut self.validators, cap, ANY_VALIDATOR);
         let candidate = validator_set::get_validator_mut_with_verified_cap(&mut self.validators, &verified_cap, true /* include_candidate */);
         validator::set_candidate_gas_price(candidate, verified_cap, new_gas_price)
     }
@@ -367,7 +379,7 @@ module sui::sui_system_state_inner {
         // Reportee needs to be an active validator
         assert!(validator_set::is_active_validator_by_sui_address(&self.validators, reportee_addr), ENotValidator);
         // Verify the represented reporter address is an active validator, and the capability is still valid.
-        let verified_cap = validator_set::verify_cap(&self.validators, cap, ACTIVE_VALIDATOR_ONLY);
+        let verified_cap = validator_set::verify_cap(&mut self.validators, cap, ACTIVE_VALIDATOR_ONLY);
         report_validator_impl(verified_cap, reportee_addr, &mut self.validator_report_records);
     }
 
@@ -381,7 +393,7 @@ module sui::sui_system_state_inner {
         cap: &UnverifiedValidatorOperationCap,
         reportee_addr: address,
     ) {
-        let verified_cap = validator_set::verify_cap(&self.validators, cap, ACTIVE_VALIDATOR_ONLY);
+        let verified_cap = validator_set::verify_cap(&mut self.validators, cap, ACTIVE_VALIDATOR_ONLY);
         undo_report_validator_impl(verified_cap, reportee_addr, &mut self.validator_report_records);
     }
 
@@ -479,6 +491,7 @@ module sui::sui_system_state_inner {
         ctx: &TxContext,
     ) {
         let validator = validator_set::get_validator_mut_with_ctx(&mut self.validators, ctx);
+        let network_address = string::from_ascii(ascii::string(network_address));
         validator::update_next_epoch_network_address(validator, network_address);
     }
 
@@ -489,6 +502,7 @@ module sui::sui_system_state_inner {
         ctx: &TxContext,
     ) {
         let candidate = validator_set::get_validator_mut_with_ctx_including_candidates(&mut self.validators, ctx);
+        let network_address = string::from_ascii(ascii::string(network_address));
         validator::update_candidate_network_address(candidate, network_address);
     }
 
@@ -500,6 +514,7 @@ module sui::sui_system_state_inner {
         ctx: &TxContext,
     ) {
         let validator = validator_set::get_validator_mut_with_ctx(&mut self.validators, ctx);
+        let p2p_address = string::from_ascii(ascii::string(p2p_address));
         validator::update_next_epoch_p2p_address(validator, p2p_address);
     }
 
@@ -510,6 +525,7 @@ module sui::sui_system_state_inner {
         ctx: &TxContext,
     ) {
         let candidate = validator_set::get_validator_mut_with_ctx_including_candidates(&mut self.validators, ctx);
+        let p2p_address = string::from_ascii(ascii::string(p2p_address));
         validator::update_candidate_p2p_address(candidate, p2p_address);
     }
 
@@ -521,6 +537,7 @@ module sui::sui_system_state_inner {
         ctx: &TxContext,
     ) {
         let validator = validator_set::get_validator_mut_with_ctx(&mut self.validators, ctx);
+        let primary_address = string::from_ascii(ascii::string(primary_address));
         validator::update_next_epoch_primary_address(validator, primary_address);
     }
 
@@ -531,6 +548,7 @@ module sui::sui_system_state_inner {
         ctx: &TxContext,
     ) {
         let candidate = validator_set::get_validator_mut_with_ctx_including_candidates(&mut self.validators, ctx);
+        let primary_address = string::from_ascii(ascii::string(primary_address));
         validator::update_candidate_primary_address(candidate, primary_address);
     }
 
@@ -542,6 +560,7 @@ module sui::sui_system_state_inner {
         ctx: &TxContext,
     ) {
         let validator = validator_set::get_validator_mut_with_ctx(&mut self.validators, ctx);
+        let worker_address = string::from_ascii(ascii::string(worker_address));
         validator::update_next_epoch_worker_address(validator, worker_address);
     }
 
@@ -552,6 +571,7 @@ module sui::sui_system_state_inner {
         ctx: &TxContext,
     ) {
         let candidate = validator_set::get_validator_mut_with_ctx_including_candidates(&mut self.validators, ctx);
+        let worker_address = string::from_ascii(ascii::string(worker_address));
         validator::update_candidate_worker_address(candidate, worker_address);
     }
 
@@ -631,15 +651,15 @@ module sui::sui_system_state_inner {
         self: &mut SuiSystemStateInner,
         new_epoch: u64,
         next_protocol_version: u64,
-        storage_charge: u64,
-        computation_charge: u64,
-        storage_rebate: u64,
+        storage_reward: Balance<SUI>,
+        computation_reward: Balance<SUI>,
+        storage_rebate_amount: u64,
         storage_fund_reinvest_rate: u64, // share of storage fund's rewards that's reinvested
                                          // into storage fund, in basis point.
         reward_slashing_rate: u64, // how much rewards are slashed to punish a validator, in bps.
         epoch_start_timestamp_ms: u64, // Timestamp of the epoch start
         ctx: &mut TxContext,
-    ) {
+    ) : Balance<SUI> {
         self.epoch_start_timestamp_ms = epoch_start_timestamp_ms;
 
         let bps_denominator_u64 = (BASIS_POINT_DENOMINATOR as u64);
@@ -654,8 +674,8 @@ module sui::sui_system_state_inner {
         let storage_fund_balance = balance::value(&self.storage_fund);
         let total_stake = storage_fund_balance + total_validators_stake;
 
-        let storage_reward = balance::create_staking_rewards(storage_charge);
-        let computation_reward = balance::create_staking_rewards(computation_charge);
+        let storage_charge = balance::value(&storage_reward);
+        let computation_charge = balance::value(&computation_reward);
 
         // Include stake subsidy in the rewards given out to validators and stakers.
         // Delay distributing any stake subsidies until after `governance_start_epoch`.
@@ -696,10 +716,10 @@ module sui::sui_system_state_inner {
             &mut storage_fund_reward,
             &mut self.validator_report_records,
             reward_slashing_rate,
-            self.parameters.governance_start_epoch,
             VALIDATOR_LOW_STAKE_THRESHOLD,
             VALIDATOR_VERY_LOW_STAKE_THRESHOLD,
             VALIDATOR_LOW_STAKE_GRACE_PERIOD,
+            self.parameters.governance_start_epoch,
             ctx,
         );
 
@@ -720,8 +740,8 @@ module sui::sui_system_state_inner {
         balance::join(&mut self.storage_fund, computation_reward);
 
         // Destroy the storage rebate.
-        assert!(balance::value(&self.storage_fund) >= storage_rebate, 0);
-        balance::destroy_storage_rebates(balance::split(&mut self.storage_fund, storage_rebate));
+        assert!(balance::value(&self.storage_fund) >= storage_rebate_amount, 0);
+        let storage_rebate = balance::split(&mut self.storage_fund, storage_rebate_amount);
 
         let new_total_stake = validator_set::total_stake(&self.validators);
 
@@ -733,7 +753,7 @@ module sui::sui_system_state_inner {
                 total_stake: new_total_stake,
                 storage_charge,
                 storage_fund_reinvestment: (storage_fund_reinvestment_amount as u64),
-                storage_rebate,
+                storage_rebate: storage_rebate_amount,
                 storage_fund_balance: balance::value(&self.storage_fund),
                 stake_subsidy_amount,
                 total_gas_fees: computation_charge,
@@ -742,6 +762,7 @@ module sui::sui_system_state_inner {
             }
         );
         self.safe_mode = false;
+        storage_rebate
     }
 
     /// An extremely simple version of advance_epoch.
@@ -836,7 +857,7 @@ module sui::sui_system_state_inner {
             let balance = balance::split(&mut total_balance, amount);
             // transfer back the remainder if non zero.
             if (balance::value(&total_balance) > 0) {
-                transfer::transfer(coin::from_balance(total_balance, ctx), tx_context::sender(ctx));
+                transfer::public_transfer(coin::from_balance(total_balance, ctx), tx_context::sender(ctx));
             } else {
                 balance::destroy_zero(total_balance);
             };
@@ -932,7 +953,7 @@ module sui::sui_system_state_inner {
             ctx
         );
 
-        validator_set::request_add_validator_candidate(&mut self.validators, validator);
+        validator_set::request_add_validator_candidate(&mut self.validators, validator, ctx);
     }
 
 }

@@ -4,7 +4,6 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use multiaddr::Multiaddr;
 use mysten_metrics::spawn_monitored_task;
 use narwhal_types::TransactionsClient;
 use prometheus::{
@@ -16,7 +15,9 @@ use sui_network::{
     api::{Validator, ValidatorServer},
     tonic,
 };
-use sui_types::{error::*, messages::*, sui_system_state::SuiSystemStateInnerBenchmark};
+use sui_types::multiaddr::Multiaddr;
+use sui_types::sui_system_state::SuiSystemState;
+use sui_types::{error::*, messages::*};
 use sui_types::{
     fp_ensure,
     messages_checkpoint::{CheckpointRequest, CheckpointResponse},
@@ -83,12 +84,12 @@ impl AuthorityServer {
                 .expect("Failed to connect to consensus"),
         ));
 
-        let consensus_adapter = ConsensusAdapter::new(
+        let consensus_adapter = Arc::new(ConsensusAdapter::new(
             consensus_client,
             state.name,
             Box::new(Arc::new(ConnectionMonitorStatusForTests {})),
             ConsensusAdapterMetrics::new_test(),
-        );
+        ));
 
         let metrics = Arc::new(ValidatorServiceMetrics::new_for_tests());
 
@@ -487,12 +488,8 @@ impl Validator for ValidatorService {
     async fn get_system_state_object(
         &self,
         _request: tonic::Request<SystemStateRequest>,
-    ) -> Result<tonic::Response<SuiSystemStateInnerBenchmark>, tonic::Status> {
-        let response = self
-            .state
-            .database
-            .get_sui_system_state_object()?
-            .into_benchmark_version();
+    ) -> Result<tonic::Response<SuiSystemState>, tonic::Status> {
+        let response = self.state.database.get_sui_system_state_object()?;
 
         return Ok(tonic::Response::new(response));
     }

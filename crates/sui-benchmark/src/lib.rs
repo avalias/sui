@@ -12,12 +12,12 @@ use std::{
     sync::{Arc, Mutex},
     time::Duration,
 };
-use sui_config::NetworkConfig;
-use sui_config::{genesis::Genesis, ValidatorInfo};
-use sui_core::signature_verifier::IgnoreSignatureVerifier;
+use sui_config::genesis::Genesis;
 use sui_core::{
     authority_aggregator::{AuthorityAggregator, AuthorityAggregatorBuilder},
-    authority_client::{make_authority_clients, AuthorityAPI, NetworkAuthorityClient},
+    authority_client::{
+        make_authority_clients_with_timeout_config, AuthorityAPI, NetworkAuthorityClient,
+    },
     quorum_driver::{
         QuorumDriver, QuorumDriverHandler, QuorumDriverHandlerBuilder, QuorumDriverMetrics,
     },
@@ -140,6 +140,17 @@ impl ExecutionEffects {
             Owner::ObjectOwner(_) | Owner::Shared { .. } | Owner::Immutable => unreachable!(), // owner of gas object is always an address
         }
     }
+
+    pub fn is_ok(&self) -> bool {
+        match self {
+            ExecutionEffects::CertifiedTransactionEffects(certified_effects, ..) => {
+                certified_effects.data().status().is_ok()
+            }
+            ExecutionEffects::SuiTransactionEffects(sui_tx_effects) => {
+                sui_tx_effects.status().is_ok()
+            }
+        }
+    }
 }
 
 #[async_trait]
@@ -165,9 +176,9 @@ pub trait ValidatorProxy {
 
 // TODO: Eventually remove this proxy because we shouldn't rely on validators to read objects.
 pub struct LocalValidatorAggregatorProxy {
-    _qd_handler: QuorumDriverHandler<NetworkAuthorityClient, IgnoreSignatureVerifier>,
+    _qd_handler: QuorumDriverHandler<NetworkAuthorityClient>,
     // Stress client does not verify individual validator signatures since this is very expensive
-    qd: Arc<QuorumDriver<NetworkAuthorityClient, IgnoreSignatureVerifier>>,
+    qd: Arc<QuorumDriver<NetworkAuthorityClient>>,
     committee: Committee,
     clients: BTreeMap<AuthorityName, NetworkAuthorityClient>,
     requests: Mutex<JoinSet<()>>,
@@ -184,54 +195,26 @@ impl LocalValidatorAggregatorProxy {
             .build()
             .unwrap();
 
-        let validator_info = genesis.validator_set();
-        let committee = Committee::new(0, ValidatorInfo::voting_rights(&validator_info));
-        let clients = make_authority_clients(
-            &validator_info,
+        let committee = genesis.committee_with_network();
+        let clients = make_authority_clients_with_timeout_config(
+            &committee,
             DEFAULT_CONNECT_TIMEOUT_SEC,
             DEFAULT_REQUEST_TIMEOUT_SEC,
-        );
-
-        Self::new_impl(
-            aggregator,
-            registry,
-            reconfig_fullnode_rpc_url,
-            clients,
-            committee,
         )
-        .await
-    }
-
-    pub async fn from_network_config(
-        configs: &NetworkConfig,
-        registry: &Registry,
-        reconfig_fullnode_rpc_url: Option<&str>,
-    ) -> Self {
-        let (aggregator, _) = AuthorityAggregatorBuilder::from_network_config(configs)
-            .with_registry(registry)
-            .build()
-            .unwrap();
-
-        let validator_info = configs.validator_set();
-        let committee = Committee::new(0, ValidatorInfo::voting_rights(&validator_info));
-        let clients = make_authority_clients(
-            &validator_info,
-            DEFAULT_CONNECT_TIMEOUT_SEC,
-            DEFAULT_REQUEST_TIMEOUT_SEC,
-        );
+        .unwrap();
 
         Self::new_impl(
             aggregator,
             registry,
             reconfig_fullnode_rpc_url,
             clients,
-            committee,
+            committee.committee,
         )
         .await
     }
 
     async fn new_impl(
-        aggregator: AuthorityAggregator<NetworkAuthorityClient, IgnoreSignatureVerifier>,
+        aggregator: AuthorityAggregator<NetworkAuthorityClient>,
         registry: &Registry,
         reconfig_fullnode_rpc_url: Option<&str>,
         clients: BTreeMap<AuthorityName, NetworkAuthorityClient>,
